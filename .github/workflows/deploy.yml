@@ -1,5 +1,10 @@
 name: Publicar frontend
+# Push na main publica o ambiente dev. Bucket e distribuição vêm dos outputs da stack
+# fotos-eventos-<stage>-hosting; se ela ainda estiver sendo criada pelo backend, o job espera.
 on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**']
   workflow_dispatch:
     inputs:
       stage:
@@ -10,12 +15,12 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: frontend-deploy-${{ inputs.stage }}
+  group: frontend-deploy-${{ inputs.stage || 'dev' }}
   cancel-in-progress: false
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,12 +37,12 @@ jobs:
         env:
           SITE_BUCKET: ${{ vars.AWS_S3_BUCKET || secrets.AWS_S3_BUCKET }}
           DISTRIBUTION: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID || secrets.CLOUDFRONT_DISTRIBUTION_ID }}
-          DEPLOY_STAGE: ${{ inputs.stage }}
+          DEPLOY_STAGE: ${{ inputs.stage || 'dev' }}
         run: python3 scripts/publish.py
       - name: Preservar build e identificação da release
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-${{ inputs.stage }}-${{ github.sha }}
+          name: frontend-${{ inputs.stage || 'dev' }}-${{ github.sha }}
           path: |
             dist/
             release.json

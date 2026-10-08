@@ -17,7 +17,7 @@ Abra `http://127.0.0.1:5178`. O proxy Vite encaminha `/api` para `http://127.0.0
 
 ## Publicar na AWS
 
-Secrets `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`; Variables `AWS_REGION`, `AWS_S3_BUCKET` e `CLOUDFRONT_DISTRIBUTION_ID` com os valores do resumo da Action do backend. Depois, **Actions → Publicar frontend → Run workflow**. Nenhum `VITE_*` ou secret entra no bundle; a API é `/api` na mesma origem. Guia completo no backend: `docs/infra/aws.md`.
+Secrets `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`. Push na `main` publica o ambiente `dev`: o workflow lê bucket e distribuição dos outputs da stack `fotos-eventos-dev-hosting` (esperando o backend criá-la, se preciso). **Run workflow** manual serve para outro stage. Nenhum `VITE_*` ou secret entra no bundle; a API é `/api` na mesma origem. Guia completo no backend: `docs/infra/aws.md`.
 
 ## Jornada implementada
 
