@@ -226,17 +226,11 @@ function Admin({ health }: { health: Health }) {
   useEffect(() => {
     if (authenticated) refresh().catch((e) => setError(e.message));
   }, [authenticated]);
-  async function login(accessKey?: string) {
+  async function login() {
     setBusy(true);
     setError("");
     try {
-      await api("/admin/session", {
-        method: "POST",
-        body:
-          accessKey === undefined
-            ? undefined
-            : JSON.stringify({ access_key: accessKey }),
-      });
+      await api("/admin/session", { method: "POST" });
       setAuthenticated(true);
     } catch (e) {
       setError((e as Error).message);
@@ -373,31 +367,8 @@ function Admin({ health }: { health: Health }) {
               galeria e compartilhe cada história.
             </p>
             {error && <Notice>{error}</Notice>}
-            {health.capabilities.admin_login === "access_key" ? (
-              <form
-                className="access-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const key = String(
-                    new FormData(e.currentTarget).get("access_key") || "",
-                  );
-                  void login(key);
-                }}
-              >
-                <label>
-                  Chave de acesso do fotógrafo
-                  <input
-                    name="access_key"
-                    type="password"
-                    required
-                    maxLength={200}
-                    autoComplete="current-password"
-                  />
-                </label>
-                <Button type="submit" disabled={busy}>
-                  Entrar no painel <ArrowRight size={18} />
-                </Button>
-              </form>
+            {health.capabilities.admin_login === "otp" ? (
+              <OtpLogin onSuccess={() => setAuthenticated(true)} />
             ) : (
               <>
                 <Button
@@ -1805,5 +1776,106 @@ async function uploadPhoto(eventId: string, file: File) {
   return api<{ id: string; duplicate: boolean }>(
     `/admin/events/${eventId}/uploads/${target.id}/complete`,
     { method: "POST" },
+  );
+}
+
+function OtpLogin({ onSuccess }: { onSuccess: () => void }) {
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [info, setInfo] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function requestCode(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ challenge_id: string; message: string }>(
+        "/admin/otp/request",
+        { method: "POST", body: JSON.stringify({ email }) },
+      );
+      setChallenge(result.challenge_id);
+      setInfo(result.message);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function verify(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const code = String(new FormData(e.currentTarget).get("code") || "");
+    setBusy(true);
+    setError("");
+    try {
+      await api("/admin/otp/verify", {
+        method: "POST",
+        body: JSON.stringify({ challenge_id: challenge, code }),
+      });
+      onSuccess();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="access-form">
+      {error && <Notice>{error}</Notice>}
+      {!challenge ? (
+        <form onSubmit={requestCode}>
+          <label>
+            E-mail do fotógrafo
+            <input
+              type="email"
+              required
+              maxLength={254}
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </label>
+          <Button type="submit" disabled={busy}>
+            {busy ? (
+              <LoaderCircle className="spin" size={17} />
+            ) : (
+              <Mail size={17} />
+            )}
+            Enviar código de acesso
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={verify}>
+          <p className="muted">{info}</p>
+          <label>
+            Código de 6 dígitos
+            <input
+              name="code"
+              required
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              autoComplete="one-time-code"
+              autoFocus
+            />
+          </label>
+          <div className="button-row">
+            <Button type="submit" disabled={busy}>
+              Entrar no painel <ArrowRight size={18} />
+            </Button>
+            <Button
+              kind="secondary"
+              disabled={busy}
+              onClick={() => {
+                setChallenge(null);
+                setError("");
+              }}
+            >
+              Usar outro e-mail
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }

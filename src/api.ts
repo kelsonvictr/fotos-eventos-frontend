@@ -28,7 +28,7 @@ export type Health = {
   stage: string;
   capabilities: {
     local_admin: boolean;
-    admin_login: "local" | "access_key";
+    admin_login: "local" | "otp";
     face_search: boolean;
     payments: boolean;
     downloads: boolean;
