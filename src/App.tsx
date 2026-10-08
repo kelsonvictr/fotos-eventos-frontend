@@ -153,7 +153,7 @@ export default function App() {
         {health?.mode === "aws"
           ? `AMBIENTE DE TESTES${health.stage === "prod" ? "" : ` (${health.stage})`}`
           : "PRÉVIA LOCAL"}{" "}
-        <span>•</span> Reconhecimento facial e pagamentos ainda não habilitados
+        <span>•</span> Busca por selfie e pagamento por Pix: em breve
       </div>
       {error ? (
         <main className="page">
@@ -1101,7 +1101,7 @@ function Gallery({ eventId, health }: { eventId: string; health: Health }) {
                 reconhecimento facial.
               </p>
             </div>
-            <span className="coming-soon">Em preparação</span>
+            <span className="coming-soon">Em breve</span>
           </section>
           <section id="fotos">
             <div className="gallery-section-title">
@@ -1232,8 +1232,8 @@ function Gallery({ eventId, health }: { eventId: string; health: Health }) {
                 <div>
                   <strong>Seleção conferida.</strong>
                   <p>
-                    O pagamento Pix ainda está em preparação. Nenhuma cobrança
-                    ou pedido foi criado nesta prévia.
+                    Pagamento por Pix em breve. Por enquanto, nenhuma cobrança
+                    ou pedido é criado.
                   </p>
                 </div>
               </div>
