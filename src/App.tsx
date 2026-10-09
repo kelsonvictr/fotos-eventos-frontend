@@ -1961,7 +1961,7 @@ function OtpLogin({ onSuccess }: { onSuccess: () => void }) {
 }
 
 /** Reduz a selfie no navegador (máx. 1280 px, JPEG) antes do envio; nada fica guardado. */
-async function shrinkSelfie(file: File): Promise<Blob> {
+async function shrinkSelfie(file: Blob): Promise<Blob> {
   const bitmap = await createImageBitmap(file, {
     imageOrientation: "from-image",
   });
@@ -1993,13 +1993,23 @@ function SelfieSearch({
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [webcam, setWebcam] = useState(false);
   const camera = useRef<HTMLInputElement>(null);
   const gallery = useRef<HTMLInputElement>(null);
+  function takeSelfie() {
+    // Phones open the native front camera through the file input; desktops ignore `capture`,
+    // so they get the webcam through getUserMedia instead.
+    const touch = window.matchMedia("(pointer: coarse)").matches;
+    if (!touch && "mediaDevices" in navigator) setWebcam(true);
+    else camera.current?.click();
+  }
   async function send(files: FileList | null) {
     const file = files?.[0];
     if (camera.current) camera.current.value = "";
     if (gallery.current) gallery.current.value = "";
-    if (!file) return;
+    if (file) await search(file);
+  }
+  async function search(file: Blob) {
     setBusy(true);
     setError("");
     try {
@@ -2050,10 +2060,7 @@ function SelfieSearch({
         </label>
         {error && <Notice>{error}</Notice>}
         <div className="selfie-actions">
-          <Button
-            disabled={!consent || busy}
-            onClick={() => camera.current?.click()}
-          >
+          <Button disabled={!consent || busy} onClick={takeSelfie}>
             <Camera size={17} />{" "}
             {busy ? "Procurando suas fotos…" : "Tirar selfie"}
           </Button>
@@ -2081,7 +2088,126 @@ function SelfieSearch({
           onChange={(e) => void send(e.target.files)}
         />
       </div>
+      {webcam && (
+        <WebcamCapture
+          close={() => setWebcam(false)}
+          onCapture={(blob) => {
+            setWebcam(false);
+            void search(blob);
+          }}
+          onFallback={() => {
+            setWebcam(false);
+            gallery.current?.click();
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+function WebcamCapture({
+  close,
+  onCapture,
+  onFallback,
+}: {
+  close: () => void;
+  onCapture: (blob: Blob) => void;
+  onFallback: () => void;
+}) {
+  const video = useRef<HTMLVideoElement>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const [state, setState] = useState<"starting" | "ready" | "error">(
+    "starting",
+  );
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    navigator.mediaDevices
+      .getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 960 },
+        },
+        audio: false,
+      })
+      .then((media) => {
+        if (cancelled) {
+          media.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        stream.current = media;
+        if (video.current) video.current.srcObject = media;
+        setState("ready");
+      })
+      .catch((e: DOMException) => {
+        setState("error");
+        setMessage(
+          e.name === "NotAllowedError"
+            ? "O acesso à câmera foi bloqueado. Libere a câmera no navegador ou escolha uma foto."
+            : "Não encontramos uma câmera disponível. Escolha uma foto sua.",
+        );
+      });
+    return () => {
+      cancelled = true;
+      stream.current?.getTracks().forEach((t) => t.stop()); // camera light goes off on close
+    };
+  }, []);
+  function capture() {
+    const source = video.current;
+    if (!source || !source.videoWidth) return;
+    const scale = Math.min(
+      1,
+      1280 / Math.max(source.videoWidth, source.videoHeight),
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(source.videoWidth * scale);
+    canvas.height = Math.round(source.videoHeight * scale);
+    canvas
+      .getContext("2d")!
+      .drawImage(source, 0, 0, canvas.width, canvas.height);
+    stream.current?.getTracks().forEach((t) => t.stop());
+    canvas.toBlob((blob) => blob && onCapture(blob), "image/jpeg", 0.9);
+  }
+  return (
+    <Modal title="Sua selfie" close={close}>
+      {state === "error" ? (
+        <>
+          <Notice>{message}</Notice>
+          <div className="modal-actions">
+            <Button kind="secondary" onClick={close}>
+              Cancelar
+            </Button>
+            <Button onClick={onFallback}>
+              <ImagePlus size={17} /> Escolher foto
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="webcam-frame">
+            <video ref={video} autoPlay playsInline muted />
+            {state === "starting" && (
+              <span className="webcam-wait">
+                <LoaderCircle className="spin" size={22} /> Abrindo a câmera…
+              </span>
+            )}
+          </div>
+          <p className="muted">
+            Fique de frente, sozinho no enquadramento e com o rosto bem
+            iluminado.
+          </p>
+          <div className="modal-actions">
+            <Button kind="secondary" onClick={close}>
+              Cancelar
+            </Button>
+            <Button disabled={state !== "ready"} onClick={capture}>
+              <Camera size={17} /> Capturar e buscar
+            </Button>
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }
 

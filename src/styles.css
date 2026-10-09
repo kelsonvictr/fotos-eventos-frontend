@@ -2354,3 +2354,30 @@ footer span {
   padding: 7px 12px;
   font-size: 12px;
 }
+
+.webcam-frame {
+  position: relative;
+  background: #1c211b;
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  margin: 14px 0 10px;
+}
+.webcam-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(
+    -1
+  ); /* mirror preview like a selfie; the captured image is not mirrored */
+}
+.webcam-wait {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #dce4d3;
+  font-size: 13px;
+}
