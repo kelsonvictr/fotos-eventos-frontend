@@ -2292,3 +2292,65 @@ footer span {
   color: var(--ink);
   font-size: 13px;
 }
+
+.selfie-panel.active {
+  align-items: flex-start;
+}
+.selfie-body {
+  flex: 1;
+  min-width: 0;
+}
+.selfie-body p {
+  margin-top: 6px;
+}
+.consent-label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #4d5a40;
+  cursor: pointer;
+}
+.consent-label input {
+  margin-top: 2px;
+  accent-color: #617231;
+}
+.selfie-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--green);
+  font-weight: 600;
+  text-decoration: underline;
+  font-size: inherit;
+}
+.face-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: #f3f6ea;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: #4d5a40;
+}
+.face-panel span {
+  flex: 1;
+  min-width: 200px;
+}
+.face-panel .button {
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 12px;
+}

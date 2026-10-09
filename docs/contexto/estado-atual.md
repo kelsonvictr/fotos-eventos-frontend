@@ -1,5 +1,7 @@
 # Frontend — estado atual
 
+09/10/2026: busca por selfie na página do evento (consentimento, câmera ou arquivo, redução da imagem no navegador, resultados selecionáveis mesmo com galeria fechada), opção "Busca por selfie" no formulário do evento e painel de indexação no admin. Pix aparece como "em breve".
+
 08/10/2026, publicação AWS preparada: no modo AWS o painel pede o e-mail do fotógrafo e depois o código de 6 dígitos enviado por e-mail, a faixa superior indica ambiente de testes, fotos vão direto ao S3 por URL assinada e prévias de pedido sem permissão aparecem como ícone. Workflow **Publicar frontend** e `scripts/publish.py` conferem bucket e distribuição contra a stack `fotos-eventos-<stage>-hosting`. Ainda não publicado.
 
 08/10/2026. Interface conectada à API real do backend: painel, criação/edição de eventos, envio de JPGs, publicação, galeria, ampliação, seleção, cotação e, neste segundo incremento, checkout com e-mail, página do pedido (`/pedido/<id>#k=…`), recuperação por e-mail (`/pedido`) e seção de pedidos no painel com resumo e reconsulta. Build TypeScript/Vite aprovado. Desktop e páginas de pedido a 375 px verificadas no navegador embutido, sem erros de console nem overflow.

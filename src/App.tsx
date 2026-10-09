@@ -654,6 +654,13 @@ function Admin({ health }: { health: Health }) {
                   <ShieldCheck size={18} /> Prévias protegidas
                 </span>
               </div>
+              {health.capabilities.face_search && selected.face_summary && (
+                <FacePanel
+                  event={selected}
+                  onChange={() => refresh(selected.id)}
+                  onError={setError}
+                />
+              )}
               <div className="publish-bar">
                 <div>
                   <strong>
@@ -882,6 +889,7 @@ function EventForm({
         description: data.get("description"),
         price_cents: Math.round(Number(data.get("price")) * 100),
         open_gallery: data.get("open_gallery") === "on",
+        face_search: data.get("face_search") === "on",
       });
     } catch (e) {
       setError((e as Error).message);
@@ -965,6 +973,21 @@ function EventForm({
             </small>
           </span>
         </label>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            name="face_search"
+            defaultChecked={initial?.face_search ?? true}
+          />
+          <span>
+            <strong>Busca por selfie</strong>
+            <small>
+              Os rostos das fotos são indexados para cada participante achar as
+              suas com uma selfie. Use só com fotos que você pode usar assim;
+              desligar apaga o índice de rostos deste evento.
+            </small>
+          </span>
+        </label>
         <div className="modal-actions">
           <Button kind="secondary" disabled={busy} onClick={close}>
             Cancelar
@@ -991,6 +1014,7 @@ function Gallery({ eventId, health }: { eventId: string; health: Health }) {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [preview, setPreview] = useState<Photo | null>(null);
   const [busy, setBusy] = useState(false);
+  const [found, setFound] = useState<Photo[] | null>(null);
   useEffect(() => {
     let active = true;
     (async () => {
@@ -1017,6 +1041,46 @@ function Gallery({ eventId, health }: { eventId: string; health: Health }) {
         : s.length < 100
           ? [...s, id]
           : s,
+    );
+  }
+  function renderGrid(list: Photo[]) {
+    return (
+      <div className="gallery-grid">
+        {list.map((p, i) => (
+          <article
+            className={`gallery-photo ${selected.includes(p.id) ? "chosen" : ""}`}
+            key={p.id}
+          >
+            <button
+              className="photo-open"
+              onClick={() => setPreview(p)}
+              aria-label={`Ampliar foto ${i + 1}`}
+            >
+              <img
+                src={p.preview_url}
+                alt={`Foto ${i + 1} de ${event?.name ?? "evento"}`}
+                loading="lazy"
+              />
+            </button>
+            <button
+              className="select-photo"
+              aria-label={`${selected.includes(p.id) ? "Remover" : "Selecionar"} foto ${i + 1}`}
+              aria-pressed={selected.includes(p.id)}
+              onClick={() => toggle(p.id)}
+            >
+              {selected.includes(p.id) ? (
+                <Check size={17} />
+              ) : (
+                <Plus size={17} />
+              )}
+            </button>
+            <div>
+              <span>FOTO {String(i + 1).padStart(3, "0")}</span>
+              <strong>{money(event?.price_cents ?? 0)}</strong>
+            </div>
+          </article>
+        ))}
+      </div>
     );
   }
   async function review() {
@@ -1090,26 +1154,51 @@ function Gallery({ eventId, health }: { eventId: string; health: Health }) {
               </span>
             </div>
           </section>
-          <section className="selfie-panel">
-            <div className="selfie-icon">
-              <ScanFace size={35} strokeWidth={1.4} />
-            </div>
-            <div>
-              <h2>Encontre seus melhores momentos.</h2>
-              <p>
-                A busca por selfie estará disponível após a validação do
-                reconhecimento facial.
-              </p>
-            </div>
-            <span className="coming-soon">Em breve</span>
-          </section>
+          {health.capabilities.face_search && event.face_search ? (
+            <SelfieSearch
+              eventId={eventId}
+              onResults={(list) => {
+                setFound(list);
+                setTimeout(
+                  () =>
+                    document
+                      .getElementById("fotos")
+                      ?.scrollIntoView({ behavior: "smooth" }),
+                  50,
+                );
+              }}
+            />
+          ) : (
+            <section className="selfie-panel">
+              <div className="selfie-icon">
+                <ScanFace size={35} strokeWidth={1.4} />
+              </div>
+              <div>
+                <h2>Encontre seus melhores momentos.</h2>
+                <p>
+                  A busca por selfie ainda não está disponível neste evento.
+                </p>
+              </div>
+              <span className="coming-soon">Em breve</span>
+            </section>
+          )}
           <section id="fotos">
             <div className="gallery-section-title">
               <div>
-                <span className="eyebrow">UM ENCONTRO. MUITAS MEMÓRIAS.</span>
+                <span className="eyebrow">
+                  {found
+                    ? "ENCONTRAMOS VOCÊ."
+                    : "UM ENCONTRO. MUITAS MEMÓRIAS."}
+                </span>
                 <h2>
-                  Fotos do evento{" "}
-                  <span>{event.open_gallery ? photos.length : ""}</span>
+                  {found ? "Suas fotos" : "Fotos do evento"}{" "}
+                  <span>
+                    {found
+                      ? found.length
+                      : event.open_gallery
+                        ? photos.length
+                        : ""}
+                  </span>
                 </h2>
               </div>
               <div className="price-tag">
@@ -1118,48 +1207,28 @@ function Gallery({ eventId, health }: { eventId: string; health: Health }) {
               </div>
             </div>
             {error && <Notice>{error}</Notice>}
-            {event.open_gallery ? (
+            {found ? (
+              <>
+                <p className="gallery-help">
+                  {found.length
+                    ? "Estas são as fotos em que reconhecemos você. Confira e escolha as que quiser."
+                    : "Não encontramos você nas fotos deste evento. Tente outra selfie, de frente e com boa luz."}{" "}
+                  <button
+                    className="link-button"
+                    onClick={() => setFound(null)}
+                  >
+                    {event.open_gallery ? "Ver todas as fotos" : "Limpar busca"}
+                  </button>
+                </p>
+                {renderGrid(found)}
+              </>
+            ) : event.open_gallery ? (
               <>
                 <p className="gallery-help">
                   Galeria aberta pelo fotógrafo. Escolha suas fotos para
                   conferir a seleção.
                 </p>
-                <div className="gallery-grid">
-                  {photos.map((p, i) => (
-                    <article
-                      className={`gallery-photo ${selected.includes(p.id) ? "chosen" : ""}`}
-                      key={p.id}
-                    >
-                      <button
-                        className="photo-open"
-                        onClick={() => setPreview(p)}
-                        aria-label={`Ampliar foto ${i + 1}`}
-                      >
-                        <img
-                          src={p.preview_url}
-                          alt={`Foto ${i + 1} de ${event.name}`}
-                          loading="lazy"
-                        />
-                      </button>
-                      <button
-                        className="select-photo"
-                        aria-label={`${selected.includes(p.id) ? "Remover" : "Selecionar"} foto ${i + 1}`}
-                        aria-pressed={selected.includes(p.id)}
-                        onClick={() => toggle(p.id)}
-                      >
-                        {selected.includes(p.id) ? (
-                          <Check size={17} />
-                        ) : (
-                          <Plus size={17} />
-                        )}
-                      </button>
-                      <div>
-                        <span>FOTO {String(i + 1).padStart(3, "0")}</span>
-                        <strong>{money(event.price_cents)}</strong>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                {renderGrid(photos)}
                 {!photos.length && (
                   <div className="photo-empty">
                     <Images />
@@ -1170,11 +1239,22 @@ function Gallery({ eventId, health }: { eventId: string; health: Health }) {
             ) : (
               <div className="photo-empty">
                 <ShieldCheck size={35} />
-                <h3>Este evento não tem galeria aberta.</h3>
-                <p>
-                  O fotógrafo ainda está preparando a forma de encontrar suas
-                  fotos.
-                </p>
+                {health.capabilities.face_search && event.face_search ? (
+                  <>
+                    <h3>Use sua selfie para encontrar suas fotos.</h3>
+                    <p>
+                      Neste evento as fotos aparecem só para quem está nelas.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3>Este evento não tem galeria aberta.</h3>
+                    <p>
+                      O fotógrafo ainda está preparando a forma de encontrar
+                      suas fotos.
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </section>
@@ -1875,6 +1955,194 @@ function OtpLogin({ onSuccess }: { onSuccess: () => void }) {
             </Button>
           </div>
         </form>
+      )}
+    </div>
+  );
+}
+
+/** Reduz a selfie no navegador (máx. 1280 px, JPEG) antes do envio; nada fica guardado. */
+async function shrinkSelfie(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file, {
+    imageOrientation: "from-image",
+  });
+  const scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) =>
+        blob
+          ? resolve(blob)
+          : reject(new Error("Não foi possível ler a foto.")),
+      "image/jpeg",
+      0.9,
+    ),
+  );
+}
+
+function SelfieSearch({
+  eventId,
+  onResults,
+}: {
+  eventId: string;
+  onResults: (photos: Photo[]) => void;
+}) {
+  const [consent, setConsent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const camera = useRef<HTMLInputElement>(null);
+  const gallery = useRef<HTMLInputElement>(null);
+  async function send(files: FileList | null) {
+    const file = files?.[0];
+    if (camera.current) camera.current.value = "";
+    if (gallery.current) gallery.current.value = "";
+    if (!file) return;
+    setBusy(true);
+    setError("");
+    try {
+      const body = await shrinkSelfie(file);
+      const result = await api<{ photos: Photo[] }>(
+        `/events/${eventId}/face-search`,
+        {
+          method: "POST",
+          body,
+          headers: {
+            "Content-Type": "image/jpeg",
+            "X-Selfie-Consent": "aceito",
+          },
+        },
+      );
+      onResults(result.photos);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="selfie-panel active">
+      <div className="selfie-icon">
+        {busy ? (
+          <LoaderCircle className="spin" size={35} />
+        ) : (
+          <ScanFace size={35} strokeWidth={1.4} />
+        )}
+      </div>
+      <div className="selfie-body">
+        <h2>Encontre suas fotos com uma selfie.</h2>
+        <p>
+          Tire uma selfie ou escolha uma foto em que só você apareça, de frente.
+          Mostramos apenas as fotos deste evento em que você foi reconhecido.
+        </p>
+        <label className="consent-label">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+          />
+          <span>
+            Concordo em usar minha selfie só para esta busca. Ela não é
+            guardada.
+          </span>
+        </label>
+        {error && <Notice>{error}</Notice>}
+        <div className="selfie-actions">
+          <Button
+            disabled={!consent || busy}
+            onClick={() => camera.current?.click()}
+          >
+            <Camera size={17} />{" "}
+            {busy ? "Procurando suas fotos…" : "Tirar selfie"}
+          </Button>
+          <Button
+            kind="secondary"
+            disabled={!consent || busy}
+            onClick={() => gallery.current?.click()}
+          >
+            <ImagePlus size={17} /> Escolher foto
+          </Button>
+        </div>
+        <input
+          ref={camera}
+          type="file"
+          accept="image/*"
+          capture="user"
+          hidden
+          onChange={(e) => void send(e.target.files)}
+        />
+        <input
+          ref={gallery}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => void send(e.target.files)}
+        />
+      </div>
+    </section>
+  );
+}
+
+function FacePanel({
+  event,
+  onChange,
+  onError,
+}: {
+  event: Event;
+  onChange: () => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const summary = event.face_summary!;
+  const waiting = summary.pending + summary.failed;
+  async function indexAll() {
+    setBusy(true);
+    onError("");
+    try {
+      for (let round = 0; round < 200; round++) {
+        const result = await api<{ remaining: number }>(
+          `/admin/events/${event.id}/faces/index`,
+          { method: "POST" },
+        );
+        if (!result.remaining) break;
+      }
+      await onChange();
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!summary.enabled)
+    return (
+      <div className="face-panel">
+        <ScanFace size={20} />
+        <span>
+          Busca por selfie desligada neste evento. Ative em{" "}
+          <strong>Editar evento</strong>.
+        </span>
+      </div>
+    );
+  return (
+    <div className="face-panel">
+      <ScanFace size={20} />
+      <span>
+        Busca por selfie: <strong>{summary.indexed}</strong> fotos com rostos
+        {summary.no_faces > 0 && ` · ${summary.no_faces} sem rostos`}
+        {summary.failed > 0 && ` · ${summary.failed} com falha`}
+        {summary.pending > 0 && ` · ${summary.pending} aguardando`}
+      </span>
+      {waiting > 0 && (
+        <Button kind="secondary" disabled={busy} onClick={indexAll}>
+          {busy ? (
+            <LoaderCircle className="spin" size={15} />
+          ) : (
+            <RefreshCw size={15} />
+          )}
+          Indexar {waiting} {waiting === 1 ? "foto" : "fotos"}
+        </Button>
       )}
     </div>
   );

@@ -6,9 +6,19 @@ export type Event = {
   description: string;
   price_cents: number;
   open_gallery: boolean;
+  face_search: boolean;
+  face_summary?: FaceSummary;
   status: "draft" | "published";
   photo_count: number;
   cover_url: string | null;
+};
+export type FaceSummary = {
+  indexed: number;
+  no_faces: number;
+  failed: number;
+  pending: number;
+  enabled: boolean;
+  available: boolean;
 };
 export type Photo = {
   id: string;
@@ -16,6 +26,7 @@ export type Photo = {
   width: number;
   height: number;
   preview_url: string;
+  faces?: string;
 };
 export type Quote = {
   quantity: number;
