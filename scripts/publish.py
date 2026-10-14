@@ -13,6 +13,14 @@ def aws(*args):
 
 region = os.environ.get("AWS_REGION", "").strip() or "us-east-2"
 stage = os.environ.get("DEPLOY_STAGE", "").strip() or "dev"
+state = json.loads(Path("ambiente.json").read_text()).get(stage, "ativo") if Path("ambiente.json").exists() else "ativo"
+if state != "ativo":
+    message = f"Ambiente {stage} está \"{state}\" (ver ambiente.json); nada publicado."
+    print(message, flush=True)
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:
+            stream.write(message + "\n")
+    raise SystemExit(0)
 stack_name = f"fotos-eventos-{stage}-hosting"
 
 

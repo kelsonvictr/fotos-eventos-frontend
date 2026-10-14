@@ -1,0 +1,4 @@
+{
+  "_sobre": "Espelho do estado em ../backend/infra/ambiente.json. Só com \"ativo\" o push publica o site. Ao reativar, trocar nos dois repositórios.",
+  "dev": "removido"
+}
