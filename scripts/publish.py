@@ -42,6 +42,19 @@ def stack_outputs():
 
 outputs = stack_outputs()
 bucket, distribution = outputs["SiteBucket"], outputs["DistributionId"]
+enabled = aws(
+    "cloudfront", "get-distribution-config", "--id", distribution,
+    "--query", "DistributionConfig.Enabled", "--output", "text",
+).strip()
+if enabled.lower() != "true":
+    # Ambiente hibernado (backend/infra/ambiente.json): nada a publicar nem invalidar.
+    message = f"Ambiente {stage} hibernado (distribuição {distribution} desativada); nada publicado."
+    print(message, flush=True)
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a") as stream:
+            stream.write(message + "\n")
+    raise SystemExit(0)
 # Variables antigas, se existirem, precisam apontar para a mesma stack.
 for name, expected in (("SITE_BUCKET", bucket), ("DISTRIBUTION", distribution)):
     configured = os.environ.get(name, "").strip()
